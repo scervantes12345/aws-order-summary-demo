@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Support Ticket Triage</title>
+<style>
+  :root { --ink:#16202c; --muted:#5b6878; --line:#dfe4ea; --bg:#f4f6f9; --card:#fff; --accent:#1f5fbf;
+          --ok:#1d7a46; --okbg:#e6f4ec; --bad:#b42318; --badbg:#fdecea; --warn:#8a5a00; --warnbg:#fff4d6; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color:var(--ink); background:var(--bg); }
+  header { display:flex; align-items:center; gap:14px; padding:10px 20px; background:#0f1b2d; color:#fff; }
+  header h1 { font-size:17px; margin:0; font-weight:600; }
+  header .sub { color:#b8c4d6; font-size:13px; }
+  .sim { background:#ffcc00; color:#1a1a1a; font-weight:800; letter-spacing:.04em; padding:3px 9px; border-radius:4px; font-size:12px; }
+  .spacer { flex:1; }
+  main { display:grid; grid-template-columns:250px minmax(420px, 1fr) minmax(500px, 1.15fr); gap:14px; padding:14px 20px; height:calc(100vh - 50px); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 14px; overflow:auto; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 8px; }
+  .ticket { display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff; border-radius:6px;
+            padding:7px 9px; margin-bottom:6px; cursor:pointer; font:inherit; color:inherit; }
+  .ticket:hover { border-color:#9db6dc; }
+  .ticket.active { border-color:var(--accent); box-shadow:0 0 0 2px #d6e4fa; }
+  .ticket .id { font-weight:600; font-size:12px; color:var(--muted); }
+  .ticket .subj { font-weight:600; }
+  .chip { display:inline-block; font-size:11px; font-weight:600; padding:1px 7px; border-radius:10px; background:#eef1f5; color:var(--muted); }
+  .chip.routed { background:var(--okbg); color:var(--ok); }
+  .chip.needs_review { background:var(--warnbg); color:var(--warn); }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  select, button { font:inherit; padding:6px 10px; border-radius:6px; border:1px solid #c5cdd8; background:#fff; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; cursor:pointer; }
+  button.primary:disabled { opacity:.5; cursor:default; }
+  .body { background:#f8fafc; border:1px solid var(--line); border-radius:6px; padding:8px 10px; margin:6px 0 10px; }
+  .contract { display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin:10px 0; }
+  .field { border:1px solid var(--line); border-radius:6px; padding:6px 9px; }
+  .field .k { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+  .field .v { font-weight:700; font-size:15px; }
+  .reason { color:var(--ink); margin:0 0 8px; }
+  .alert { border-radius:6px; padding:8px 10px; margin:8px 0; font-weight:600; }
+  .alert.bad { background:var(--badbg); color:var(--bad); border:1px solid #f5c2bd; }
+  .alert.warn { background:var(--warnbg); color:var(--warn); border:1px solid #f0d58a; }
+  .alert.ok { background:var(--okbg); color:var(--ok); border:1px solid #b5dec6; }
+  .muted { color:var(--muted); }
+  .hidden { display:none; }
+  .provider-note { font-size:12px; margin:6px 0 0; }
+  .tag { display:inline-block; font-size:11px; font-weight:800; padding:1px 6px; border-radius:4px; background:#ffcc00; color:#1a1a1a; }
+  .tag.live { background:#d92d20; color:#fff; }
+  .disclaimer { background:var(--warnbg); border:1px solid #f0d58a; color:var(--warn); border-radius:6px; padding:7px 10px; font-size:12px; margin:8px 0; }
+  table { border-collapse:collapse; width:100%; font-size:12px; }
+  th, td { border-bottom:1px solid var(--line); padding:5px 6px; text-align:left; vertical-align:top; }
+  th { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .pass { color:var(--ok); font-weight:800; } .fail { color:var(--bad); font-weight:800; }
+  .case { color:var(--muted); font-size:11px; }
+  .summary { font-weight:700; margin:6px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Juniper &amp; Pine Outfitters <span class="sub">(fictional retailer) · Support ticket triage</span></h1>
+  <span class="spacer"></span>
+  <span class="sim" id="sim-banner">SIMULATED PROVIDERS · SYNTHETIC TICKETS · OFFLINE</span>
+</header>
+<main>
+  <section class="card">
+    <h2>Inbox (synthetic)</h2>
+    <div id="inbox"></div>
+  </section>
+  <section class="card" id="workbench">
+    <h2>Triage</h2>
+    <div id="ticket-view" class="muted">Select a ticket.</div>
+    <div class="row">
+      <label for="provider" style="min-width:84px">Provider</label>
+      <select id="provider"></select>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <label for="fault" id="fault-label" style="min-width:84px">Inject fault</label>
+      <select id="fault"></select>
+      <button class="primary" id="triage" disabled>Triage ticket</button>
+    </div>
+    <p class="provider-note muted" id="provider-note"></p>
+    <div id="result" class="hidden">
+      <div id="error" class="alert bad hidden"></div>
+      <div class="contract">
+        <div class="field"><div class="k">Queue</div><div class="v" id="r-queue"></div></div>
+        <div class="field"><div class="k">Priority</div><div class="v" id="r-priority"></div></div>
+        <div class="field"><div class="k">Review required</div><div class="v" id="r-review"></div></div>
+        <div class="field"><div class="k">Status</div><div class="v" id="r-status"></div></div>
+      </div>
+      <p class="reason"><span class="muted">Reason:</span> <span id="r-reason"></span></p>
+      <p class="provider-note muted">Result from <b id="r-provider"></b></p>
+      <div id="review" class="alert warn hidden">
+        <div style="margin-bottom:6px">Human review required before routing.</div>
+        <div class="row">
+          <label for="review-queue">Route to</label>
+          <select id="review-queue"></select>
+          <button class="primary" id="approve">Confirm route</button>
+        </div>
+      </div>
+      <div id="routed" class="alert ok hidden"></div>
+    </div>
+  </section>
+  <section class="card" id="evaluation">
+    <h2>Provider comparison · evaluation</h2>
+    <div class="row">
+      <button class="primary" id="run-eval">Run evaluation</button>
+      <span class="muted" id="eval-scope"></span>
+    </div>
+    <div class="disclaimer" id="eval-disclaimer"><b>SIMULATED integration checks.</b> Both offline providers return deterministic, scripted responses. Results show contract, validation and workflow wiring only, not model quality, latency, or cost.</div>
+    <div id="eval-out" class="muted">Runs every labeled synthetic ticket through each SIMULATED provider and compares expected vs actual.</div>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let config = null, tickets = [], selected = null;
+
+async function api(path, body) {
+  const res = await fetch(path, body === undefined ? {} : {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) k === 'class' ? node.className = v : node.setAttribute(k, v);
+  for (const c of children) node.append(c);
+  return node;
+}
+function statusLabel(state) {
+  if (state.status === 'routed') return `Routed: ${state.routed_to}`;
+  if (state.status === 'needs_review') return 'Needs review';
+  return 'New';
+}
+function renderInbox() {
+  const box = $('inbox'); box.replaceChildren();
+  for (const t of tickets) {
+    const btn = el('button', {class: 'ticket' + (t.id === selected ? ' active' : ''), 'data-id': t.id},
+      el('div', {class: 'row'}, el('span', {class: 'id'}, t.id), el('span', {class: 'chip ' + t.state.status}, statusLabel(t.state))),
+      el('div', {class: 'subj'}, t.subject));
+    btn.onclick = () => select(t.id);
+    box.append(btn);
+  }
+}
+function select(id) {
+  selected = id;
+  const t = tickets.find((x) => x.id === id);
+  $('ticket-view').replaceChildren(el('div', {}, el('b', {}, `${t.id} · ${t.subject}`), ' ', el('span', {class: 'muted'}, t.customer)),
+    el('div', {class: 'body'}, t.body));
+  $('ticket-view').classList.remove('muted');
+  $('triage').disabled = false;
+  renderInbox();
+  t.state.triage ? showState(t.state) : $('result').classList.add('hidden');
+}
+function showState(state) {
+  const rec = state.triage, r = rec.result;
+  $('result').classList.remove('hidden');
+  $('r-queue').textContent = r.queue; $('r-priority').textContent = r.priority;
+  $('r-review').textContent = r.review_required ? 'yes' : 'no';
+  $('r-status').textContent = statusLabel(state);
+  $('r-reason').textContent = r.reason;
+  $('error').classList.toggle('hidden', !rec.error);
+  $('result').dataset.provider = rec.provider.id;
+  $('r-provider').textContent = rec.provider.label;
+  $('error').textContent = rec.error ? `FAIL-SAFE: ${rec.provider.label}. ${rec.error.replace(/\.?$/, ".")} Ticket sent to human review; no other provider was tried.` : '';
+  $('review').classList.toggle('hidden', state.status !== 'needs_review');
+  $('review-queue').value = config.queues.includes(r.queue) ? r.queue : '';
+  $('approve').disabled = !$('review-queue').value;
+  $('routed').classList.toggle('hidden', state.status !== 'routed');
+  $('routed').textContent = state.status === 'routed' ? `Routed to ${state.routed_to} (${state.routed_by}).` : '';
+}
+const FAULT_LABELS = {none: 'None (Bedrock SIMULATED only)', timeout: 'Bedrock timeout', malformed: 'Malformed output', disallowed_queue: 'Disallowed queue'};
+function currentFault() { return $('provider').value === 'bedrock-simulated' ? $('fault').value : 'none'; }
+function providerChanged() {
+  const p = config.providers.find((x) => x.id === $('provider').value);
+  const sim = $('provider').value === 'bedrock-simulated';
+  $('fault').disabled = !sim; if (!sim) $('fault').value = 'none';
+  $('provider-note').replaceChildren(el('span', {class: 'tag' + (p.simulated ? '' : ' live')}, p.simulated ? 'SIMULATED' : 'LIVE'), ' ', p.detail);
+}
+function fmt(r) { return `${r.queue} · ${r.priority} · review ${r.review_required ? 'yes' : 'no'}`; }
+$('run-eval').onclick = async () => {
+  $('run-eval').disabled = true;
+  try {
+    const report = await api('/api/evaluate', {});
+    const head = el('tr', {}, el('th', {}, 'Ticket'), el('th', {}, 'Expected (label)'));
+    for (const p of report.providers) head.append(el('th', {}, p.label));
+    const table = el('table', {id: 'eval-table'}, el('thead', {}, head));
+    const body = el('tbody');
+    for (const row of report.rows) {
+      const e = row.expected;
+      const tr = el('tr', {}, el('td', {}, el('b', {}, row.ticket_id), el('div', {class: 'case'}, row.case)),
+        el('td', {}, `${e.queue.join(' | ')} · ${e.priority} · review ${e.review_required ? 'yes' : 'no'}`));
+      for (const p of report.providers) {
+        const a = row.actual[p.id];
+        tr.append(el('td', {}, el('span', {class: a.passed ? 'pass' : 'fail'}, a.passed ? 'PASS' : 'FAIL'), ' ', fmt(a.result),
+          a.error ? el('div', {class: 'fail'}, a.error) : ''));
+      }
+      body.append(tr);
+    }
+    table.append(body);
+    const summary = el('div', {class: 'summary', id: 'eval-summary'},
+      report.providers.map((p) => `${p.label}: ${report.summary[p.id].passed}/${report.summary[p.id].total} checks passed`).join('  ·  '));
+    $('eval-out').classList.remove('muted');
+    $('eval-out').replaceChildren(summary, table);
+  } catch (e) { alert(e.message); } finally { $('run-eval').disabled = false; }
+};
+async function refresh() { tickets = await api('/api/tickets'); renderInbox(); }
+$('triage').onclick = async () => {
+  $('triage').disabled = true;
+  try {
+    const state = await api('/api/triage', {ticket_id: selected, provider: $('provider').value, fault: currentFault()});
+    await refresh(); showState(state);
+  } catch (e) { alert(e.message); } finally { $('triage').disabled = false; }
+};
+$('review-queue').onchange = () => { $('approve').disabled = !$('review-queue').value; };
+$('approve').onclick = async () => {
+  try {
+    const state = await api('/api/review', {ticket_id: selected, queue: $('review-queue').value});
+    await refresh(); showState(state);
+  } catch (e) { alert(e.message); }
+};
+(async () => {
+  config = await api('/api/config');
+  for (const p of config.providers) $('provider').append(el('option', {value: p.id}, p.label));
+  for (const f of config.faults) $('fault').append(el('option', {value: f}, FAULT_LABELS[f] || f));
+  $('provider').onchange = providerChanged; providerChanged();
+  const live = config.providers.find((p) => !p.simulated);
+  if (live) $('sim-banner').textContent = 'SIMULATED PROVIDERS + LIVE BEDROCK (OPT-IN, BILLABLE) · SYNTHETIC TICKETS';
+  $('eval-scope').textContent = 'Providers: ' + config.providers.filter((p) => p.simulated).map((p) => p.label).join(' vs ');
+  $('review-queue').append(el('option', {value: ''}, 'Choose a queue…'));
+  for (const q of config.queues) $('review-queue').append(el('option', {value: q}, q));
+  await refresh();
+})();
+</script>
+</body>
+</html>
