@@ -75,9 +75,13 @@ class SimulatedBedrockModel:
 
     @staticmethod
     def _pick_region(question, comparison):
+        mentions = []
         for row in comparison:
-            if re.search(rf'\b{re.escape(row["region"])}\b', question, re.IGNORECASE):
-                return row['region']
+            match = re.search(rf'\b{re.escape(row["region"])}\b', question, re.IGNORECASE)
+            if match:
+                mentions.append((match.start(), row['region']))
+        if mentions:
+            return min(mentions)[1]
         return min(comparison, key=lambda row: Decimal(row['change_usd']))['region']
 
     @staticmethod

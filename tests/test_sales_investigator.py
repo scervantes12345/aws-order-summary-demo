@@ -127,6 +127,10 @@ class SimulatedInvestigationTest(unittest.TestCase):
         self.assertEqual(result['trace'][2]['input']['region'], 'East')
         self.assertIn('did not drop', result['findings']['summary'])
 
+    def test_first_mentioned_region_is_investigated(self):
+        result = run_investigation('Why did East sales drop compared with West?', SimulatedBedrockModel())
+        self.assertEqual(result['trace'][2]['input']['region'], 'East')
+
     def test_simulated_model_label(self):
         self.assertEqual(self.result['model']['label'], 'Simulated Bedrock')
 
