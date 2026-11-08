@@ -238,6 +238,10 @@ class AgentCoreEntryPointTest(unittest.TestCase):
         handle_invocation({'prompt': DEFAULT_QUESTION, 'model_id': 'm-1'}, bedrock_factory=factory)
         self.assertEqual(seen['model_id'], 'm-1')
 
+    def test_blank_prompt_uses_default_question(self):
+        result = handle_invocation({'prompt': '   ', 'simulated': True})
+        self.assertEqual(result['question'], DEFAULT_QUESTION)
+
     def test_rejects_oversized_prompt(self):
         self.assertEqual(handle_invocation({'prompt': 'x' * 301})['status'], 'error')
 
