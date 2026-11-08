@@ -75,6 +75,8 @@ def make_handler(app):
         server_version = 'SupportTriageDemo/1.0'
 
         def do_GET(self):
+            if not self._host_allowed():
+                return self._json(HTTPStatus.FORBIDDEN, {'error': 'Host not allowed.'})
             if self.path in ('/', '/index.html'):
                 self._send(HTTPStatus.OK, INDEX_HTML.read_bytes(), 'text/html; charset=utf-8')
             elif self.path == '/api/config':
@@ -85,6 +87,8 @@ def make_handler(app):
                 self._json(HTTPStatus.NOT_FOUND, {'error': 'Not found.'})
 
         def do_POST(self):
+            if not self._host_allowed():
+                return self._json(HTTPStatus.FORBIDDEN, {'error': 'Host not allowed.'})
             # Block cross-site form posts: browsers cannot send this content type cross-origin without CORS.
             if self.headers.get('Content-Type', '').split(';')[0].strip().lower() != 'application/json':
                 return self._json(HTTPStatus.UNSUPPORTED_MEDIA_TYPE,
@@ -108,6 +112,12 @@ def make_handler(app):
             if result is None:
                 return self._json(HTTPStatus.NOT_FOUND, {'error': 'Not found.'})
             self._json(HTTPStatus.OK, result)
+
+        def _host_allowed(self):
+            # Blocks DNS rebinding: a rebound site sends its own hostname in Host (and Origin).
+            host, port = self.server.server_address[:2]
+            names = {'127.0.0.1', 'localhost', '[::1]', host}
+            return self.headers.get('Host', '').lower() in {f'{name}:{port}' for name in names}
 
         def _json(self, status, payload):
             self._send(status, json.dumps(payload).encode('utf-8'), 'application/json')

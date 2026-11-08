@@ -149,6 +149,14 @@ class HttpTest(unittest.TestCase):
         self.assertEqual(self.request('/api/triage', {}, {'Origin': 'http://evil.example'})[0], 403)
         self.assertEqual(self.request('/api/triage', {}, {'Content-Type': 'text/plain'})[0], 415)
 
+    def test_dns_rebinding_host_is_rejected(self):
+        port = self.server.server_address[1]
+        rebound = {'Host': f'evil.example:{port}', 'Origin': f'http://evil.example:{port}'}
+        self.assertEqual(self.request('/api/tickets', headers=rebound)[0], 403)
+        self.assertEqual(self.request('/api/triage', {'ticket_id': 'T-101', 'provider': 'legacy-simulated'},
+                                      rebound)[0], 403)
+        self.assertEqual(self.request('/api/config', headers={'Host': f'localhost:{port}'})[0], 200)
+
 
 if __name__ == '__main__':
     unittest.main()
