@@ -1,0 +1,9 @@
+{
+  "order_count": 5,
+  "revenue_usd": "400.00",
+  "revenue_by_region_usd": {
+    "Central": "100.00",
+    "East": "150.00",
+    "West": "150.00"
+  }
+}
