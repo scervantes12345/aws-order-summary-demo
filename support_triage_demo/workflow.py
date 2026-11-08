@@ -58,6 +58,8 @@ class ReviewDesk:
             state = self._state.get(ticket_id)
             if state is None:
                 raise ValueError('Triage the ticket before reviewing it.')
+            if state['status'] != 'needs_review':
+                raise ValueError('This ticket is not waiting for human review.')
             state.update(status='routed', routed_to=queue, routed_by='human reviewer')
             return state
 

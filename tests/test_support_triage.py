@@ -98,6 +98,12 @@ class WorkflowTest(unittest.TestCase):
                          ('routed', 'returns', 'human reviewer'))
         with self.assertRaises(ValueError):
             desk.review('T-101', 'billing')
+        with self.assertRaisesRegex(ValueError, 'not waiting'):
+            desk.review('T-106', 'billing')
+        self.assertEqual(desk.snapshot()[5]['state']['routed_to'], 'returns')
+        desk.record_triage(triage(TICKETS['T-101'], SimulatedLegacyProvider()))
+        with self.assertRaisesRegex(ValueError, 'not waiting'):
+            desk.review('T-101', 'shipping')
 
 
 class HttpTest(unittest.TestCase):
