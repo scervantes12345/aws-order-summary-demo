@@ -227,12 +227,16 @@ class BedrockAdapterTest(unittest.TestCase):
         client = boto3.client('bedrock-runtime', region_name='us-east-1',
                               aws_access_key_id='test', aws_secret_access_key='test')
         stubber = Stubber(client)
-        stubber.add_response('converse', {
-            'output': {'message': {'role': 'assistant', 'content': [{'toolUse': {
-                'toolUseId': 'x', 'name': FINDINGS_TOOL, 'input': {'summary': 's', 'observed': ['o'], 'unknown': ['u']}}}]}},
-            'stopReason': 'tool_use', 'usage': {'inputTokens': 1, 'outputTokens': 1, 'totalTokens': 2},
-            'metrics': {'latencyMs': 1},
-        })
+        dates = {'baseline_date': '2026-11-06', 'current_date': '2026-11-07'}
+        for name, tool_input in (('compare_region_revenue', dates),
+                                 ('attribute_change_by_product', {'region': 'West', **dates}),
+                                 (FINDINGS_TOOL, {'summary': 's', 'observed': ['o'], 'unknown': ['u']})):
+            stubber.add_response('converse', {
+                'output': {'message': {'role': 'assistant', 'content': [{'toolUse': {
+                    'toolUseId': name, 'name': name, 'input': tool_input}}]}},
+                'stopReason': 'tool_use', 'usage': {'inputTokens': 1, 'outputTokens': 1, 'totalTokens': 2},
+                'metrics': {'latencyMs': 1},
+            })
         with stubber:
             result = run_investigation(DEFAULT_QUESTION, BedrockConverseModel('example-model-id', client=client))
         self.assertEqual(result['status'], 'complete')
