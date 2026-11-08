@@ -7,22 +7,26 @@ from decimal import Decimal
 from pathlib import Path
 
 
-def summarize_orders(csv_path):
+def summarize_rows(orders):
     count = 0
     total = Decimal('0.00')
     by_region = {}
-    with csv_path.open(encoding='utf-8', newline='') as source:
-        for order in csv.DictReader(source):
-            region = order['region']
-            amount = Decimal(order['amount_usd'])
-            count += 1
-            total += amount
-            by_region[region] = by_region.get(region, Decimal('0.00')) + amount
+    for order in orders:
+        region = order['region']
+        amount = Decimal(order['amount_usd'])
+        count += 1
+        total += amount
+        by_region[region] = by_region.get(region, Decimal('0.00')) + amount
     return {
         'order_count': count,
         'revenue_usd': f'{total:.2f}',
         'revenue_by_region_usd': {region: f'{amount:.2f}' for region, amount in sorted(by_region.items())},
     }
+
+
+def summarize_orders(csv_path):
+    with Path(csv_path).open(encoding='utf-8', newline='') as source:
+        return summarize_rows(csv.DictReader(source))
 
 
 def main():
