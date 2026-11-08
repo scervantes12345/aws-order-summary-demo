@@ -1,0 +1,19 @@
+date,region,product,revenue_usd
+2026-11-06,West,Product A,2000.00
+2026-11-06,West,Product B,1400.00
+2026-11-06,West,Product C,800.00
+2026-11-06,East,Product A,1100.00
+2026-11-06,East,Product B,1200.00
+2026-11-06,East,Product C,700.00
+2026-11-06,Central,Product A,900.00
+2026-11-06,Central,Product B,1000.00
+2026-11-06,Central,Product C,600.00
+2026-11-07,West,Product A,1200.00
+2026-11-07,West,Product B,1250.00
+2026-11-07,West,Product C,750.00
+2026-11-07,East,Product A,1150.00
+2026-11-07,East,Product B,1180.00
+2026-11-07,East,Product C,720.00
+2026-11-07,Central,Product A,880.00
+2026-11-07,Central,Product B,990.00
+2026-11-07,Central,Product C,610.00
