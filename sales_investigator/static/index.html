@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sales Anomaly Investigator</title>
+<style>
+  :root {
+    --bg: #f3f5f9; --card: #fff; --ink: #18202f; --muted: #5b6475; --line: #e2e6ee;
+    --navy: #0f1b2d; --accent: #2563eb; --obs: #0f766e; --obs-bg: #ecfdf5; --unk: #b45309; --unk-bg: #fffbeb;
+    --sim: #f59e0b; --neg: #dc2626; --pos: #16a34a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         background: var(--bg); color: var(--ink); display: flex; flex-direction: column; }
+  header { position: sticky; top: 0; z-index: 10; background: var(--navy); color: #fff;
+           display: flex; align-items: center; gap: 16px; padding: 12px 24px; }
+  .mark { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg, #3b82f6, #14b8a6);
+          display: grid; place-items: center; font-weight: 700; }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .2px; }
+  header p { margin: 0; color: #a9b4c7; font-size: 12px; }
+  .mode { margin-left: auto; display: flex; align-items: center; gap: 10px; border-radius: 10px; padding: 7px 12px;
+          border: 2px solid var(--sim); background: rgba(245, 158, 11, .12); }
+  .mode .tag { background: var(--sim); color: #1f1300; font-weight: 800; font-size: 12px; letter-spacing: .6px;
+               padding: 3px 8px; border-radius: 6px; text-transform: uppercase; }
+  .mode .why { font-size: 12px; color: #fde7b0; }
+  .mode.live { border-color: #60a5fa; background: rgba(96, 165, 250, .14); }
+  .mode.live .tag { background: #60a5fa; color: #06162e; }
+  .mode.live .why { color: #cfe3ff; }
+  main { flex: 1; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px;
+         padding: 18px 24px; max-width: 1440px; width: 100%; margin: 0 auto; min-height: 0; }
+  .col { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px;
+          box-shadow: 0 1px 2px rgba(16, 24, 40, .04); }
+  form { display: flex; gap: 10px; }
+  label.sr { position: absolute; left: -9999px; }
+  input[type=text] { flex: 1; font: inherit; font-size: 16px; padding: 11px 14px; border: 1px solid #cdd3de;
+                     border-radius: 9px; outline: none; }
+  input[type=text]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37, 99, 235, .15); }
+  button { font: inherit; font-weight: 600; border: 0; border-radius: 9px; padding: 0 18px; cursor: pointer;
+           background: var(--accent); color: #fff; }
+  button:disabled { opacity: .6; cursor: progress; }
+  button.ghost { background: transparent; color: var(--accent); padding: 4px 8px; font-size: 12px; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 8px; }
+  .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--muted);
+             margin: 0 0 6px; }
+  .summary { font-size: 17px; line-height: 1.5; margin: 0; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .box { border-radius: 10px; padding: 12px 14px; }
+  .box h3 { margin: 0 0 6px; font-size: 13px; }
+  .box ul { margin: 0; padding-left: 18px; }
+  .box li { margin: 4px 0; }
+  .obs { background: var(--obs-bg); border: 1px solid #a7f3d0; } .obs h3 { color: var(--obs); }
+  .unk { background: var(--unk-bg); border: 1px solid #fcd34d; } .unk h3 { color: var(--unk); }
+  .bars { display: grid; grid-template-columns: 90px 1fr 150px; gap: 8px 12px; align-items: center; }
+  .bar { height: 14px; border-radius: 4px; background: var(--neg); min-width: 2px; }
+  .bar.pos { background: var(--pos); }
+  .num { font-variant-numeric: tabular-nums; text-align: right; color: var(--muted); font-size: 13px; }
+  .num b { color: var(--ink); }
+  .meta { color: var(--muted); font-size: 12px; margin-top: 10px; }
+  .trace { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .trace-head { display: flex; align-items: center; justify-content: space-between; }
+  .trace-head h2 { font-size: 15px; margin: 0; }
+  .steps { overflow: auto; margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+  details.step { border: 1px solid var(--line); border-radius: 10px; background: #fbfcfe; }
+  details.step > summary { cursor: pointer; list-style: none; padding: 9px 12px; display: flex; gap: 10px; align-items: center; }
+  details.step > summary::-webkit-details-marker { display: none; }
+  details.step > summary::before { content: "\25B8"; color: var(--muted); transition: transform .15s; }
+  details.step[open] > summary::before { transform: rotate(90deg); }
+  .n { width: 22px; height: 22px; border-radius: 50%; background: #e8eefc; color: var(--accent); font-weight: 700;
+       font-size: 12px; display: grid; place-items: center; flex: none; }
+  code.tool { font: 600 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .status { margin-left: auto; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px;
+            background: #dcfce7; color: #166534; text-transform: uppercase; }
+  .status.final { background: #dbeafe; color: #1e40af; }
+  .status.rejected, .status.error { background: #fee2e2; color: #991b1b; }
+  .io { padding: 0 12px 12px; }
+  .io h4 { margin: 8px 0 4px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+  pre { margin: 0; background: #0f1b2d; color: #dbe7ff; padding: 10px 12px; border-radius: 8px; overflow: auto;
+        font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; max-height: 240px; }
+  .empty { color: var(--muted); }
+  .error { color: var(--neg); font-weight: 600; }
+  footer { color: var(--muted); font-size: 12px; text-align: center; padding: 0 24px 12px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } .split { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="mark">SA</div>
+  <div>
+    <h1>Sales Anomaly Investigator</h1>
+    <p>Synthetic two-day sales data &middot; read-only Python tools &middot; bounded tool-use loop</p>
+  </div>
+  <div class="mode" id="mode" role="status" aria-live="polite">
+    <span class="tag" id="mode-tag">Simulated Bedrock</span>
+    <span class="why" id="mode-why">Offline &middot; deterministic model &middot; no AWS calls</span>
+  </div>
+</header>
+<main>
+  <section class="col">
+    <div class="card">
+      <form id="ask">
+        <label class="sr" for="question">Question</label>
+        <input id="question" type="text" maxlength="300" autocomplete="off" value="Why did West sales drop yesterday?">
+        <button id="go" type="submit">Investigate</button>
+      </form>
+      <div class="hint">"Yesterday" is 2026-11-07 in the fixture, compared with 2026-11-06.</div>
+    </div>
+    <div class="card" id="answer">
+      <p class="eyebrow">Answer</p>
+      <p class="summary empty" id="summary">Ask the question to run the agent. Every figure below comes from a tool result.</p>
+      <div class="split" id="split" hidden>
+        <div class="box obs"><h3>Observed contribution</h3><ul id="observed"></ul></div>
+        <div class="box unk"><h3>Unknown root cause</h3><ul id="unknown"></ul></div>
+      </div>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="card" id="chart-card" hidden>
+      <p class="eyebrow" id="chart-title">Change by product</p>
+      <div class="bars" id="bars"></div>
+    </div>
+  </section>
+  <section class="col">
+    <div class="card trace">
+      <div class="trace-head">
+        <h2>Agent trace</h2>
+        <button class="ghost" id="toggle" type="button" hidden>Expand all</button>
+      </div>
+      <div class="steps" id="steps"><p class="empty">Tool calls, inputs, and results appear here.</p></div>
+    </div>
+  </section>
+</main>
+<footer id="footer">All data is synthetic. Tools are read-only.</footer>
+<script>
+const $ = (id) => document.getElementById(id);
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+let model = null;
+
+function showMode(info) {
+  model = info;
+  const live = info.provider !== 'simulated';
+  $('mode').classList.toggle('live', live);
+  $('mode-tag').textContent = info.label;
+  $('mode-why').textContent = live ? `Live Converse API · ${info.model_id}` : 'Offline · deterministic model · no AWS calls';
+  $('footer').textContent = `All data is synthetic. Tools are read-only. Model: ${info.label} (${info.model_id}). ${info.description}`;
+}
+
+function fill(list, items) { list.replaceChildren(...items.map((t) => el('li', null, t))); }
+
+function renderChart(trace) {
+  const step = trace.find((s) => s.tool === 'attribute_change_by_product' && s.status === 'ok');
+  $('chart-card').hidden = !step;
+  if (!step) return;
+  const r = step.result;
+  $('chart-title').textContent = `${r.region}: change by product, ${r.baseline_date} → ${r.current_date} (tool result)`;
+  const widest = Math.max(...r.products.map((p) => Math.abs(Number(p.change_usd))), 1);
+  $('bars').replaceChildren(...r.products.flatMap((p) => {
+    const bar = el('div', 'bar' + (Number(p.change_usd) > 0 ? ' pos' : ''));
+    bar.style.width = `${(Math.abs(Number(p.change_usd)) / widest) * 100}%`;
+    const num = el('div', 'num');
+    num.append(el('b', null, `${p.change_usd} USD`), ` · ${p.share_of_region_change_pct ?? 'n/a'}%`);
+    const track = el('div'); track.append(bar);
+    return [el('div', null, p.product), track, num];
+  }));
+}
+
+function renderTrace(trace) {
+  $('toggle').hidden = !trace.length;
+  $('steps').replaceChildren(...trace.map((s) => {
+    const d = el('details', 'step');
+    const sum = el('summary');
+    sum.append(el('span', 'n', String(s.step)), el('code', 'tool', s.tool), el('span', 'status ' + s.status, s.status));
+    const io = el('div', 'io');
+    io.append(el('h4', null, `Input (model turn ${s.turn})`), el('pre', null, JSON.stringify(s.input, null, 2)));
+    if ('result' in s) io.append(el('h4', null, s.status === 'final' ? 'Final findings' : `Result${s.duration_ms != null ? ` (${s.duration_ms} ms)` : ''}`), el('pre', null, JSON.stringify(s.result, null, 2)));
+    if (s.error) io.append(el('h4', null, 'Error'), el('pre', null, s.error));
+    d.append(sum, io);
+    return d;
+  }));
+}
+
+async function investigate(question) {
+  $('go').disabled = true; $('go').textContent = 'Investigating…';
+  try {
+    const res = await fetch('/api/investigate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || res.statusText);
+    showMode(data.model);
+    const f = data.findings;
+    $('summary').className = 'summary' + (f ? '' : ' error');
+    $('summary').textContent = f ? f.summary : data.error;
+    $('split').hidden = !f;
+    if (f) { fill($('observed'), f.observed); fill($('unknown'), f.unknown); }
+    const toolCalls = data.trace.filter((s) => s.status !== 'final').length;
+    $('meta').textContent = `${data.model.label} · ${data.model_turns} model turns (max ${data.max_model_turns}) · ${toolCalls} tool calls · status: ${data.status}`;
+    renderChart(data.trace);
+    renderTrace(data.trace);
+  } catch (err) {
+    $('summary').className = 'summary error'; $('summary').textContent = `Error: ${err.message}`;
+    $('split').hidden = true; $('chart-card').hidden = true;
+  } finally {
+    $('go').disabled = false; $('go').textContent = 'Investigate';
+  }
+}
+
+$('ask').addEventListener('submit', (e) => { e.preventDefault(); investigate($('question').value); });
+$('toggle').addEventListener('click', () => {
+  const steps = [...document.querySelectorAll('details.step')];
+  const open = !steps.every((d) => d.open);
+  steps.forEach((d) => { d.open = open; });
+  $('toggle').textContent = open ? 'Collapse all' : 'Expand all';
+});
+fetch('/api/config').then((r) => r.json()).then((c) => { showMode(c.model); if (!$('question').value) $('question').value = c.default_question; });
+</script>
+</body>
+</html>
