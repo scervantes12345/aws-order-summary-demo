@@ -52,3 +52,21 @@ To see the error path, test with an event such as `{}`. The result should show a
 ### Clean up
 
 When you are done, delete the function from the Lambda console. Optionally also delete its IAM role (named after the function) and its CloudWatch log group (`/aws/lambda/<function-name>`).
+## Support ticket triage demo (`support_triage_demo`)
+
+A standalone, one-screen local app for a fictional retailer, Juniper & Pine Outfitters, that routes synthetic support tickets with an AI model. Every ticket in `support_triage_demo/data/tickets.json` is made up; there is no real customer or ticket data. It needs only Python 3 (no packages, no network, no AWS account):
+
+```sh
+python3 -m support_triage_demo
+```
+
+Then open http://127.0.0.1:8766/ and stop the server with `Ctrl+C`.
+
+### Workflow and output contract
+
+1. Pick a ticket in the inbox and choose **Triage ticket**.
+2. The provider must return exactly the shared contract (`support_triage_demo/contract.py`): `queue` (billing, shipping, returns, technical, account, general), `priority` (low, medium, high, urgent), `reason` (at most 300 characters), and `review_required` (boolean). Anything else is rejected.
+3. Tickets with `review_required: false` are routed automatically. Others wait for a person, who confirms or changes the queue and chooses **Confirm route**. Urgent tickets always need review.
+4. If the provider fails or returns output that does not validate, the ticket goes to the `human_review` queue with `review_required: true` and the error is shown. It is never routed automatically.
+
+The baseline provider is **Legacy provider (SIMULATED)**, a deterministic keyword script that stands in for the pilot's existing model provider (`support_triage_demo/simulated.py`). The header always shows a SIMULATED badge.

@@ -1,0 +1,18 @@
+[
+  {"id": "T-101", "customer": "Ava (synthetic)", "subject": "Charged twice for one order",
+   "body": "I was charged twice for order A1001. Please refund the duplicate payment on my card."},
+  {"id": "T-102", "customer": "Ben (synthetic)", "subject": "Package tracking stuck",
+   "body": "My package tracking has not updated in five days. Where is my delivery?"},
+  {"id": "T-103", "customer": "Cara (synthetic)", "subject": "Return a jacket",
+   "body": "The jacket is the wrong size. How do I return it for an exchange?"},
+  {"id": "T-104", "customer": "Dev (synthetic)", "subject": "App crashes at checkout",
+   "body": "The mobile app crashes every time I tap Pay at checkout. I cannot complete my order."},
+  {"id": "T-105", "customer": "Eli (synthetic)", "subject": "Cannot log in",
+   "body": "I cannot log in and the password reset email never arrives."},
+  {"id": "T-106", "customer": "Fay (synthetic)", "subject": "Damaged item and extra charge",
+   "body": "My order arrived damaged and I was also charged extra for shipping. Not sure who handles this."},
+  {"id": "T-107", "customer": "Gus (synthetic)", "subject": "Third time asking about a charge",
+   "body": "Third time asking about this charge. I will file a chargeback with my bank and talk to a lawyer."},
+  {"id": "T-108", "customer": "Hana (synthetic)", "subject": "Question",
+   "body": "Hi, I need help with something. Can someone call me?"}
+]
