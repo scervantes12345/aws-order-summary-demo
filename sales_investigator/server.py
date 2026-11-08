@@ -30,6 +30,12 @@ def make_handler(model):
         def do_POST(self):
             if self.path != '/api/investigate':
                 return self._json(HTTPStatus.NOT_FOUND, {'error': 'Not found.'})
+            # Block cross-site form posts: browsers cannot send this content type cross-origin without CORS.
+            if self.headers.get('Content-Type', '').split(';')[0].strip().lower() != 'application/json':
+                return self._json(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, {'error': 'Content-Type must be application/json.'})
+            origin = self.headers.get('Origin')
+            if origin and origin != f'http://{self.headers.get("Host")}':
+                return self._json(HTTPStatus.FORBIDDEN, {'error': 'Cross-origin requests are not allowed.'})
             length = int(self.headers.get('Content-Length') or 0)
             if length > MAX_BODY_BYTES:
                 return self._json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {'error': 'Request body is too large.'})

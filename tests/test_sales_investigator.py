@@ -288,9 +288,10 @@ class WebServerTest(unittest.TestCase):
         cls.server.shutdown()
         cls.server.server_close()
 
-    def request(self, path, body=None):
+    def request(self, path, body=None, headers=None):
         data = None if body is None else json.dumps(body).encode()
-        with urllib.request.urlopen(urllib.request.Request(self.url + path, data=data)) as response:
+        headers = {'Content-Type': 'application/json', **(headers or {})}
+        with urllib.request.urlopen(urllib.request.Request(self.url + path, data=data, headers=headers)) as response:
             return response.read().decode()
 
     def test_page_has_persistent_simulated_label(self):
@@ -311,6 +312,13 @@ class WebServerTest(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as error:
             self.request('/api/investigate', {'question': 'x' * 301})
         self.assertEqual(error.exception.code, 400)
+
+    def test_rejects_cross_site_form_posts(self):
+        for headers, code in (({'Content-Type': 'text/plain'}, 415),
+                              ({'Origin': 'http://evil.example'}, 403)):
+            with self.subTest(headers=headers), self.assertRaises(urllib.error.HTTPError) as error:
+                self.request('/api/investigate', {'question': DEFAULT_QUESTION}, headers)
+            self.assertEqual(error.exception.code, code)
 
 
 if __name__ == '__main__':
