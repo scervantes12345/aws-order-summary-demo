@@ -163,7 +163,8 @@ function showState(state) {
   $('r-provider').textContent = rec.provider.label;
   $('error').textContent = rec.error ? `FAIL-SAFE: ${rec.provider.label}. ${rec.error.replace(/\.?$/, ".")} Ticket sent to human review; no other provider was tried.` : '';
   $('review').classList.toggle('hidden', state.status !== 'needs_review');
-  $('review-queue').value = config.queues.includes(r.queue) ? r.queue : config.queues[0];
+  $('review-queue').value = config.queues.includes(r.queue) ? r.queue : '';
+  $('approve').disabled = !$('review-queue').value;
   $('routed').classList.toggle('hidden', state.status !== 'routed');
   $('routed').textContent = state.status === 'routed' ? `Routed to ${state.routed_to} (${state.routed_by}).` : '';
 }
@@ -210,9 +211,12 @@ $('triage').onclick = async () => {
     await refresh(); showState(state);
   } catch (e) { alert(e.message); } finally { $('triage').disabled = false; }
 };
+$('review-queue').onchange = () => { $('approve').disabled = !$('review-queue').value; };
 $('approve').onclick = async () => {
-  const state = await api('/api/review', {ticket_id: selected, queue: $('review-queue').value});
-  await refresh(); showState(state);
+  try {
+    const state = await api('/api/review', {ticket_id: selected, queue: $('review-queue').value});
+    await refresh(); showState(state);
+  } catch (e) { alert(e.message); }
 };
 (async () => {
   config = await api('/api/config');
@@ -222,6 +226,7 @@ $('approve').onclick = async () => {
   const live = config.providers.find((p) => !p.simulated);
   if (live) $('sim-banner').textContent = 'SIMULATED PROVIDERS + LIVE BEDROCK (OPT-IN, BILLABLE) · SYNTHETIC TICKETS';
   $('eval-scope').textContent = 'Providers: ' + config.providers.filter((p) => p.simulated).map((p) => p.label).join(' vs ');
+  $('review-queue').append(el('option', {value: ''}, 'Choose a queue…'));
   for (const q of config.queues) $('review-queue').append(el('option', {value: q}, q));
   await refresh();
 })();

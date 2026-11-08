@@ -52,6 +52,12 @@ class SupportTriageBrowserTest(unittest.TestCase):
                 self.assertIn('timeout', page.inner_text('#error'))
                 self.assertEqual(page.inner_text('#r-queue'), 'human_review')
                 self.assertFalse(page.is_hidden('#review'))
+                self.assertEqual(page.input_value('#review-queue'), '')
+                self.assertTrue(page.is_disabled('#approve'))
+                page.select_option('#review-queue', 'technical')
+                page.click('#approve')
+                page.wait_for_selector('#routed:not(.hidden)')
+                self.assertIn('Routed to technical (human reviewer)', page.inner_text('#routed'))
 
                 page.click('#run-eval')
                 page.wait_for_selector('#eval-table')
