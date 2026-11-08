@@ -1,0 +1,13 @@
+{
+  "labeling_note": "Labels were written from the synthetic ticket text alone, before running any provider. A ticket passes when the queue is one of expected_queues and priority and review_required match.",
+  "labels": {
+    "T-101": {"expected_queues": ["billing"], "expected_priority": "high", "expected_review_required": false, "case": "clear"},
+    "T-102": {"expected_queues": ["shipping"], "expected_priority": "medium", "expected_review_required": false, "case": "clear"},
+    "T-103": {"expected_queues": ["returns"], "expected_priority": "low", "expected_review_required": false, "case": "clear"},
+    "T-104": {"expected_queues": ["technical"], "expected_priority": "high", "expected_review_required": false, "case": "clear"},
+    "T-105": {"expected_queues": ["account"], "expected_priority": "medium", "expected_review_required": false, "case": "clear"},
+    "T-106": {"expected_queues": ["returns", "billing", "shipping"], "expected_priority": "medium", "expected_review_required": true, "case": "ambiguous"},
+    "T-107": {"expected_queues": ["billing"], "expected_priority": "urgent", "expected_review_required": true, "case": "expected human review"},
+    "T-108": {"expected_queues": ["general"], "expected_priority": "low", "expected_review_required": true, "case": "no clear intent"}
+  }
+}

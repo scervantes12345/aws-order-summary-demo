@@ -48,3 +48,43 @@ class SimulatedLegacyProvider:
         assert system_prompt == SYSTEM_PROMPT
         response = {'id': 'legacy-sim-1', 'choices': [{'text': json.dumps(scripted_triage(ticket_text))}]}
         return response['choices'][0]['text']
+
+
+FAULTS = ('none', 'timeout', 'malformed', 'disallowed_queue')
+
+
+class SimulatedReadTimeoutError(TimeoutError):
+    """Shaped like botocore's ReadTimeoutError so the adapter classifies it the same way."""
+
+
+class SimulatedBedrockRuntime:
+    """Fake bedrock-runtime client returning deterministic Converse-shaped responses, with optional faults."""
+
+    def __init__(self, fault='none'):
+        if fault not in FAULTS:
+            raise ValueError(f'Fault must be one of: {", ".join(FAULTS)}.')
+        self.fault = fault
+        self.requests = []
+
+    def converse(self, *, modelId, system, messages, inferenceConfig):
+        self.requests.append({'modelId': modelId, 'system': system, 'messages': messages,
+                              'inferenceConfig': inferenceConfig})
+        assert system == [{'text': SYSTEM_PROMPT}]
+        if self.fault == 'timeout':
+            raise SimulatedReadTimeoutError('Read timeout on endpoint URL (simulated)')
+        result = scripted_triage(messages[-1]['content'][0]['text'])
+        if self.fault == 'malformed':
+            text = f'Sure! This looks like a {result["queue"]} ticket.'
+        elif self.fault == 'disallowed_queue':
+            text = json.dumps({**result, 'queue': 'refunds'})
+        else:
+            text = json.dumps(result)
+        return {'output': {'message': {'role': 'assistant', 'content': [{'text': text}]}}, 'stopReason': 'end_turn',
+                'usage': {'inputTokens': 0, 'outputTokens': 0, 'totalTokens': 0}, 'metrics': {'latencyMs': 0}}
+
+
+def simulated_bedrock_provider(fault='none'):
+    from .bedrock import BedrockConverseProvider
+
+    return BedrockConverseProvider('simulated-model (no AWS call)', 'offline', client=SimulatedBedrockRuntime(fault),
+                                   simulated=True)

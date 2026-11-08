@@ -6,8 +6,10 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from .bedrock import DEFAULT_TIMEOUT_SECONDS, BedrockConfigError, BedrockConverseProvider
 from .contract import PRIORITIES, ROUTABLE_QUEUES
-from .simulated import SimulatedLegacyProvider
+from .evaluation import evaluate
+from .simulated import FAULTS, SimulatedLegacyProvider, simulated_bedrock_provider
 from .tickets import load_tickets
 from .workflow import ReviewDesk, triage
 
@@ -16,9 +18,21 @@ MAX_BODY_BYTES = 4096
 DEFAULT_PORT = 8766
 
 
-def default_providers():
-    legacy = SimulatedLegacyProvider()
-    return {legacy.info['id']: lambda body: legacy}
+def fixed_provider(provider):
+    def factory(body):
+        if body and body.get('fault', 'none') != 'none':
+            raise ValueError('Fault injection is only available for Amazon Bedrock (SIMULATED).')
+        return provider
+    return factory
+
+
+def default_providers(live_bedrock=None):
+    """Provider factories by ID. A request uses exactly the provider it names; there is no fallback."""
+    providers = {'legacy-simulated': fixed_provider(SimulatedLegacyProvider()),
+                 'bedrock-simulated': lambda body: simulated_bedrock_provider((body or {}).get('fault', 'none'))}
+    if live_bedrock is not None:
+        providers[live_bedrock.info['id']] = fixed_provider(live_bedrock)
+    return providers
 
 
 class App:
@@ -30,7 +44,8 @@ class App:
         return [factory(None).info for factory in self.providers.values()]
 
     def config(self):
-        return {'providers': self.provider_infos(), 'queues': list(ROUTABLE_QUEUES), 'priorities': list(PRIORITIES)}
+        return {'providers': self.provider_infos(), 'queues': list(ROUTABLE_QUEUES), 'priorities': list(PRIORITIES),
+                'faults': list(FAULTS)}
 
     def handle_post(self, path, body):
         if path == '/api/triage':
@@ -41,6 +56,12 @@ class App:
             if factory is None:
                 raise ValueError('Unknown or unavailable provider.')
             return self.desk.record_triage(triage(ticket, factory(body)))
+        if path == '/api/evaluate':
+            ids = body.get('providers') or [info['id'] for info in self.provider_infos() if info['simulated']]
+            if not isinstance(ids, list) or any(provider_id not in self.providers for provider_id in ids):
+                raise ValueError('Unknown or unavailable provider.')
+            return evaluate([self.providers[provider_id](None) for provider_id in ids],
+                            [ticket for ticket in self.desk.tickets.values()])
         if path == '/api/review':
             return self.desk.review(body.get('ticket_id'), body.get('queue'))
         if path == '/api/reset':
@@ -114,13 +135,28 @@ def build_parser():
                                      description='Run the support ticket triage demo locally.')
     parser.add_argument('--host', default='127.0.0.1')
     parser.add_argument('--port', type=int, default=DEFAULT_PORT)
+    parser.add_argument('--bedrock', action='store_true',
+                        help='Also offer live Amazon Bedrock (billable; needs boto3 and AWS credentials).')
+    parser.add_argument('--model-id',
+                        help='Bedrock model or inference profile ID (default: $SUPPORT_TRIAGE_BEDROCK_MODEL_ID).')
+    parser.add_argument('--region', help='AWS Region for Bedrock (default: $SUPPORT_TRIAGE_BEDROCK_REGION).')
+    parser.add_argument('--timeout', type=float, default=DEFAULT_TIMEOUT_SECONDS,
+                        help='Bedrock connect and read timeout in seconds (default: %(default)s).')
     return parser
 
 
 def main(argv=None):
-    args = build_parser().parse_args(argv)
-    server = create_server(App(), args.host, args.port)
-    print(f'Support triage demo (offline, SIMULATED providers): http://{args.host}:{args.port}/', flush=True)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    live = None
+    if args.bedrock:
+        try:
+            live = BedrockConverseProvider.from_env(args.model_id, args.region, args.timeout)
+        except BedrockConfigError as error:
+            parser.error(str(error))
+    server = create_server(App(default_providers(live)), args.host, args.port)
+    mode = f'live Bedrock enabled: {live.model_id} in {live.region}' if live else 'offline, SIMULATED providers'
+    print(f'Support triage demo ({mode}): http://{args.host}:{args.port}/', flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
