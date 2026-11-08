@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from lambda_function import lambda_handler
-from order_summary import summarize_csv_text, summarize_orders
+from order_summary import summarize_orders
 
 ROOT = Path(__file__).resolve().parent.parent
 ORDERS_CSV = ROOT / 'orders.csv'
@@ -21,14 +21,6 @@ class SummaryLogicTest(unittest.TestCase):
     def test_file_summary_matches_expected(self):
         self.assertEqual(summarize_orders(ORDERS_CSV), EXPECTED)
 
-    def test_text_summary_matches_expected(self):
-        self.assertEqual(summarize_csv_text(ORDERS_CSV.read_text(encoding='utf-8')), EXPECTED)
-
-    def test_header_only_csv_is_zero(self):
-        self.assertEqual(
-            summarize_csv_text('order_id,region,amount_usd\n'),
-            {'order_count': 0, 'revenue_usd': '0.00', 'revenue_by_region_usd': {}},
-        )
 
 
 class CliTest(unittest.TestCase):
@@ -60,22 +52,35 @@ class LambdaHandlerTest(unittest.TestCase):
     def test_result_is_json_serializable(self):
         self.assertEqual(json.loads(json.dumps(lambda_handler(SAMPLE_EVENT, None))), EXPECTED)
 
+    def test_header_only_csv_is_zero(self):
+        self.assertEqual(
+            lambda_handler({'csv_text': 'order_id,region,amount_usd\n'}, None),
+            {'order_count': 0, 'revenue_usd': '0.00', 'revenue_by_region_usd': {}},
+        )
+
     def test_rejects_missing_or_non_string_csv_text(self):
         for event in ({}, {'csv_text': 123}, None, 'order_id,region,amount_usd'):
             with self.subTest(event=event), self.assertRaisesRegex(ValueError, 'csv_text'):
                 lambda_handler(event, None)
 
-    def test_rejects_missing_column(self):
-        with self.assertRaisesRegex(ValueError, 'amount_usd'):
-            lambda_handler({'csv_text': 'order_id,region\n1,East\n'}, None)
+    def test_rejects_missing_header_columns(self):
+        for csv_text in ('', 'order_id,region\n', 'order_id,region\n1,East\n'):
+            with self.subTest(csv_text=csv_text), self.assertRaisesRegex(ValueError, 'missing required column'):
+                lambda_handler({'csv_text': csv_text}, None)
 
     def test_rejects_non_numeric_amount(self):
-        with self.assertRaisesRegex(ValueError, 'not a number'):
-            lambda_handler({'csv_text': 'order_id,region,amount_usd\n1,East,abc\n'}, None)
+        for amount in ('abc', '', 'NaN', 'Infinity', '-inf', 'sNaN'):
+            with self.subTest(amount=amount), self.assertRaisesRegex(ValueError, 'line 2 .*not a number'):
+                lambda_handler({'csv_text': f'order_id,region,amount_usd\n1,East,{amount}\n'}, None)
 
-    def test_rejects_short_row(self):
-        with self.assertRaisesRegex(ValueError, 'missing values'):
-            lambda_handler({'csv_text': 'order_id,region,amount_usd\n1,East\n'}, None)
+    def test_rejects_rows_with_wrong_number_of_values(self):
+        for csv_text in (
+            'order_id,region,amount_usd\n1,East\n',
+            'order_id,region,amount_usd\n1,East,1,000.00\n',
+            'order_id,amount_usd,region\n1,10.00\n',
+        ):
+            with self.subTest(csv_text=csv_text), self.assertRaisesRegex(ValueError, 'line 2 does not have exactly 3 values'):
+                lambda_handler({'csv_text': csv_text}, None)
 
 
 if __name__ == '__main__':

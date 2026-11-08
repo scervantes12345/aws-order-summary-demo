@@ -24,7 +24,7 @@ python3 -m unittest discover -s tests -t . -v
 {"csv_text": "order_id,region,amount_usd\n1001,East,120.50\n..."}
 ```
 
-A ready-to-use test event built from `orders.csv` is in `events/sample_event.json`. If `csv_text` is missing, or the CSV is malformed, the function raises a `ValueError` with a plain-language message, which Lambda reports as a function error.
+A ready-to-use test event built from `orders.csv` is in `events/sample_event.json`. If `csv_text` is missing, or the CSV is malformed (missing `region` or `amount_usd` columns, rows with too few or too many values, or amounts that are not finite numbers), the function raises a `ValueError` with a plain-language message, which Lambda reports as a function error.
 
 The steps below use only the AWS Management Console in a browser and do not create a public endpoint. The function can only be invoked by signed-in AWS users with permission to call it.
 

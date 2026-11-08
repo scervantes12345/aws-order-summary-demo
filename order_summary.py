@@ -2,7 +2,6 @@
 
 import argparse
 import csv
-import io
 import json
 from decimal import Decimal
 from pathlib import Path
@@ -23,10 +22,6 @@ def summarize_rows(orders):
         'revenue_usd': f'{total:.2f}',
         'revenue_by_region_usd': {region: f'{amount:.2f}' for region, amount in sorted(by_region.items())},
     }
-
-
-def summarize_csv_text(csv_text):
-    return summarize_rows(csv.DictReader(io.StringIO(csv_text, newline='')))
 
 
 def summarize_orders(csv_path):
