@@ -11,6 +11,7 @@ from . import tools
 
 MAX_MODEL_TURNS = 6
 FINDINGS_TOOL = 'submit_findings'
+REQUIRED_EVIDENCE = ('compare_region_revenue', 'attribute_change_by_product')
 SYSTEM_PROMPT = (
     'You are a sales anomaly investigator. Answer the question using only the provided read-only tools. '
     'Start with list_datasets, compare regional revenue, then attribute the change by product. '
@@ -117,6 +118,13 @@ def run_investigation(question, model, max_turns=MAX_MODEL_TURNS):
                 results.append(_tool_result(tool_use, {'error': str(error)}, 'error'))
                 continue
             if name == FINDINGS_TOOL:
+                measured = {s['tool'] for s in trace if s.get('status') == 'ok'}
+                missing = [tool for tool in REQUIRED_EVIDENCE if tool not in measured]
+                if missing:
+                    error = f'Findings rejected: call {", ".join(missing)} before submit_findings.'
+                    step.update(status='rejected', error=error)
+                    results.append(_tool_result(tool_use, {'error': error}, 'error'))
+                    continue
                 step.update(status='final', result=tool_input)
                 return _result(question, model, 'complete', turn, max_turns, trace, tool_input, None)
             started = time.perf_counter()

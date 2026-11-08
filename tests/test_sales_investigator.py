@@ -160,6 +160,15 @@ class DispatchLoopTest(unittest.TestCase):
             with self.subTest(name=name, tool_input=tool_input), self.assertRaises(tools.ToolInputError):
                 validate_tool_request(name, tool_input)
 
+    def test_findings_before_measuring_are_rejected(self):
+        findings = {'summary': 'West fell $9,999.', 'observed': ['made up'], 'unknown': ['u']}
+        model = ScriptedModel(tool_use(FINDINGS_TOOL, findings),
+                              {'output': {'message': {'role': 'assistant', 'content': [{'text': 'Stopping.'}]}}})
+        result = run_investigation('q', model)
+        self.assertEqual(result['trace'][0]['status'], 'rejected')
+        self.assertIsNone(result['findings'])
+        self.assertEqual(result['status'], 'incomplete')
+
     def test_loop_is_bounded(self):
         model = ScriptedModel(*[tool_use('list_datasets', {}, f't{i}') for i in range(MAX_MODEL_TURNS + 2)])
         result = run_investigation('q', model)
@@ -189,13 +198,15 @@ class BedrockAdapterTest(unittest.TestCase):
             tool_use('compare_region_revenue', {'baseline_date': '2026-11-06', 'current_date': '2026-11-07'}, 'a'),
             tool_use('attribute_change_by_product', {'region': 'West', 'baseline_date': 'yesterday',
                                                      'current_date': '2026-11-07'}, 'b'),
-            tool_use(FINDINGS_TOOL, findings, 'c'),
+            tool_use('attribute_change_by_product', {'region': 'West', 'baseline_date': '2026-11-06',
+                                                     'current_date': '2026-11-07'}, 'c'),
+            tool_use(FINDINGS_TOOL, findings, 'd'),
         ])
         model = BedrockConverseModel('example-model-id', client=client)
         result = run_investigation(DEFAULT_QUESTION, model)
         self.assertEqual(result['status'], 'complete')
         self.assertEqual(result['findings'], findings)
-        self.assertEqual([s['status'] for s in result['trace']], ['ok', 'rejected', 'final'])
+        self.assertEqual([s['status'] for s in result['trace']], ['ok', 'rejected', 'ok', 'final'])
         first = client.calls[0]
         self.assertEqual(first['modelId'], 'example-model-id')
         self.assertEqual(first['messages'], [{'role': 'user', 'content': [{'text': DEFAULT_QUESTION}]}])
